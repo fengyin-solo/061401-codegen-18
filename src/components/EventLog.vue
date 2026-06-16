@@ -20,6 +20,8 @@ function getLogColor(type: LogEntry['type']): string {
       return 'text-purple-400'
     case 'event':
       return 'text-yellow-400'
+    case 'map':
+      return 'text-emerald-400'
     default:
       return 'text-gray-300'
   }
@@ -35,6 +37,8 @@ function getLogIcon(type: LogEntry['type']): string {
       return '📢'
     case 'event':
       return '🎲'
+    case 'map':
+      return '🗺️'
     default:
       return '▶️'
   }

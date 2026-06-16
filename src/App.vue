@@ -4,9 +4,22 @@ import StatusPanel from '@/components/StatusPanel.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 import EventLog from '@/components/EventLog.vue'
 import GameOverModal from '@/components/GameOverModal.vue'
+import MapPanel from '@/components/MapPanel.vue'
 import { useGame } from '@/composables/useGame'
 
-const { state, highScore, canPerformAction, gatherWood, gatherStone, hunt, drink, restart } = useGame()
+const {
+  state,
+  highScore,
+  canPerformAction,
+  gatherWood,
+  gatherStone,
+  hunt,
+  drink,
+  exploreLocation,
+  restart,
+  explorationProgress,
+  mapLocations,
+} = useGame()
 
 const isNewRecord = computed(() => state.value.turn >= highScore.value && state.value.turn > 0)
 </script>
@@ -35,9 +48,13 @@ const isNewRecord = computed(() => state.value.turn >= highScore.value && state.
           <span class="text-gray-400 text-sm">最高纪录</span>
           <p class="text-2xl font-bold text-yellow-400 tabular-nums">🏆 {{ highScore }}</p>
         </div>
+        <div class="bg-game-card/80 backdrop-blur px-6 py-3 rounded-xl border border-game-border">
+          <span class="text-gray-400 text-sm">已探索</span>
+          <p class="text-2xl font-bold text-emerald-400 tabular-nums">🗺️ {{ state.exploredLocations.length }}/{{ mapLocations.length }}</p>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div class="space-y-6">
           <StatusPanel
             :health="state.health"
@@ -54,6 +71,7 @@ const isNewRecord = computed(() => state.value.turn >= highScore.value && state.
             :can-gather-stone="canPerformAction('gatherStone')"
             :can-hunt="canPerformAction('hunt')"
             :can-drink="canPerformAction('drink')"
+            :can-explore="canPerformAction('explore')"
             :disabled="state.isGameOver"
             @gather-wood="gatherWood"
             @gather-stone="gatherStone"
@@ -63,12 +81,23 @@ const isNewRecord = computed(() => state.value.turn >= highScore.value && state.
         </div>
 
         <div>
+          <MapPanel
+            :map-locations="mapLocations"
+            :explored-locations="state.exploredLocations"
+            :current-location-id="state.currentLocationId"
+            :exploration-progress="explorationProgress"
+            :disabled="state.isGameOver"
+            @explore="exploreLocation"
+          />
+        </div>
+
+        <div>
           <EventLog :logs="state.logs" />
         </div>
       </div>
 
       <footer class="mt-8 text-center text-gray-500 text-sm">
-        <p>💡 提示：生命值归零或饥饿/口渴值满格则游戏结束</p>
+        <p>💡 提示：探索地图可发现新区域，已探索区域会在重开后保留，并影响事件结果</p>
       </footer>
     </div>
 
@@ -77,6 +106,8 @@ const isNewRecord = computed(() => state.value.turn >= highScore.value && state.
       :final-turn="state.turn"
       :high-score="highScore"
       :is-new-record="isNewRecord"
+      :explored-count="state.exploredLocations.length"
+      :total-locations="mapLocations.length"
       @restart="restart"
     />
   </div>

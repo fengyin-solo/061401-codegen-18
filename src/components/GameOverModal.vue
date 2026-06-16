@@ -4,6 +4,8 @@ interface Props {
   finalTurn: number
   highScore: number
   isNewRecord: boolean
+  exploredCount: number
+  totalLocations: number
 }
 
 defineProps<Props>()
@@ -40,6 +42,19 @@ const emit = defineEmits<{
                   <span v-if="isNewRecord" class="text-sm ml-1">🏆 新纪录！</span>
                 </span>
               </div>
+              <div class="border-t border-gray-700"></div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-400">探索区域</span>
+                <span class="text-xl font-bold text-emerald-400">
+                  🗺️ {{ exploredCount }}/{{ totalLocations }}
+                </span>
+              </div>
+            </div>
+
+            <div v-if="exploredCount > 0" class="bg-emerald-900/20 rounded-xl p-3 mb-6 border border-emerald-700/30">
+              <p class="text-emerald-400/90 text-sm">
+                ✨ 你探索过的 {{ exploredCount }} 个区域将被记住，下次游戏时这些区域的知识会帮助你！
+              </p>
             </div>
 
             <button

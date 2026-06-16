@@ -1,8 +1,10 @@
-import { ref, computed, watch } from 'vue'
-import type { GameState, LogEntry, RandomEvent, ActionType, ActionEffect } from '@/types/game'
+import { ref, computed } from 'vue'
+import type { GameState, LogEntry, RandomEvent, ActionType, ActionEffect, MapLocation } from '@/types/game'
 import { randomEvents } from '@/data/events'
+import { mapLocations } from '@/data/mapLocations'
 
 const STORAGE_KEY_HIGH_SCORE = 'survival_game_high_score'
+const STORAGE_KEY_EXPLORED = 'survival_game_explored'
 const MAX_STAT = 100
 
 const actionEffects: Record<ActionType, ActionEffect> = {
@@ -14,6 +16,8 @@ const actionEffects: Record<ActionType, ActionEffect> = {
     health: 15, hunger: -20, thirst: 5, wood: -5, stone: 0 },
   drink: {
     health: 0, hunger: 2, thirst: -25, wood: -3, stone: 0 },
+  explore: {
+    health: -3, hunger: 4, thirst: 3, wood: 0, stone: 0 },
 }
 
 const actionNames: Record<ActionType, string> = {
@@ -21,9 +25,12 @@ const actionNames: Record<ActionType, string> = {
   gatherStone: '采集石头',
   hunt: '打猎',
   drink: '喝水',
+  explore: '探索地图',
 }
 
 export function useGame() {
+  const persistedExplored = loadExploredLocations()
+
   const state = ref<GameState>({
     health: 80,
     hunger: 30,
@@ -33,12 +40,28 @@ export function useGame() {
     turn: 0,
     isGameOver: false,
     logs: [],
+    exploredLocations: persistedExplored,
+    currentLocationId: null,
   })
 
   const highScore = ref<number>(0)
   let logIdCounter = 0
 
   const canAct = computed(() => !state.value.isGameOver)
+
+  const unexploredLocations = computed(() => {
+    const explored = new Set(state.value.exploredLocations)
+    return mapLocations.filter(loc => !explored.has(loc.id))
+  })
+
+  const exploredLocationDetails = computed(() => {
+    const explored = new Set(state.value.exploredLocations)
+    return mapLocations.filter(loc => explored.has(loc.id))
+  })
+
+  const explorationProgress = computed(() => {
+    return Math.round((state.value.exploredLocations.length / mapLocations.length) * 100)
+  })
 
   function loadHighScore() {
     try {
@@ -59,6 +82,29 @@ export function useGame() {
       } catch (e) {
         // ignore
       }
+    }
+  }
+
+  function loadExploredLocations(): string[] {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_EXPLORED)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          return parsed.filter((id: string) => mapLocations.some(loc => loc.id === id))
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return []
+  }
+
+  function saveExploredLocations() {
+    try {
+      localStorage.setItem(STORAGE_KEY_EXPLORED, JSON.stringify(state.value.exploredLocations))
+    } catch (e) {
+      // ignore
     }
   }
 
@@ -96,9 +142,30 @@ export function useGame() {
     }
   }
 
+  function hasExplored(locationId: string): boolean {
+    return state.value.exploredLocations.includes(locationId)
+  }
+
   function getRandomEvent(): RandomEvent {
-    const index = Math.floor(Math.random() * randomEvents.length)
-    return randomEvents[index]
+    const eligibleEvents = randomEvents.filter(event => {
+      if (!event.requireExplored || event.requireExplored.length === 0) return true
+      return event.requireExplored.some(locId => hasExplored(locId))
+    })
+    const index = Math.floor(Math.random() * eligibleEvents.length)
+    return eligibleEvents[index]
+  }
+
+  function applyEventWithExploredBonus(event: RandomEvent) {
+    const hasBonus = event.exploredBonus && event.requireExplored?.some(locId => hasExplored(locId))
+    if (hasBonus && event.exploredBonus) {
+      applyEffects(event.exploredBonus.effects)
+      const eventLogType = event.type === 'good' ? 'good' : event.type === 'bad' ? 'bad' : 'event'
+      addLog(event.exploredBonus.text, eventLogType)
+    } else {
+      applyEffects(event.effects)
+      const eventLogType = event.type === 'good' ? 'good' : event.type === 'bad' ? 'bad' : 'event'
+      addLog(event.text, eventLogType)
+    }
   }
 
   function checkGameOver() {
@@ -118,6 +185,9 @@ export function useGame() {
     if (effects.stone !== undefined && state.value.stone + effects.stone < 0) {
       return false
     }
+    if (action === 'explore' && unexploredLocations.value.length === 0) {
+      return false
+    }
     return true
   }
 
@@ -131,10 +201,7 @@ export function useGame() {
     addLog(`第 ${state.value.turn} 回合：${actionNames[action]}`, 'action')
 
     const event = getRandomEvent()
-    applyEffects(event.effects)
-
-    const eventLogType = event.type === 'good' ? 'good' : event.type === 'bad' ? 'bad' : 'event'
-    addLog(event.text, eventLogType)
+    applyEventWithExploredBonus(event)
 
     checkGameOver()
   }
@@ -155,6 +222,36 @@ export function useGame() {
     performAction('drink')
   }
 
+  function exploreLocation(locationId: string) {
+    if (state.value.isGameOver) return
+    if (hasExplored(locationId)) return
+
+    const location = mapLocations.find(loc => loc.id === locationId)
+    if (!location) return
+
+    const effects = actionEffects.explore
+    applyEffects(effects)
+    applyEffects(location.effects)
+
+    state.value.exploredLocations.push(locationId)
+    state.value.currentLocationId = locationId
+    state.value.turn++
+
+    saveExploredLocations()
+
+    addLog(`第 ${state.value.turn} 回合：探索了【${location.name}】`, 'map')
+    addLog(`📍 ${location.description}`, 'map')
+
+    const event = getRandomEvent()
+    applyEventWithExploredBonus(event)
+
+    checkGameOver()
+  }
+
+  function getLocationById(id: string): MapLocation | undefined {
+    return mapLocations.find(loc => loc.id === id)
+  }
+
   function restart() {
     state.value = {
       health: 80,
@@ -165,13 +262,44 @@ export function useGame() {
       turn: 0,
       isGameOver: false,
       logs: [],
+      exploredLocations: [...persistedExplored],
+      currentLocationId: null,
     }
     logIdCounter = 0
-    addLog('你醒来发现自己身处荒野中，需要想办法生存下去...', 'system')
+
+    const exploredCount = persistedExplored.length
+    if (exploredCount > 0) {
+      addLog('你醒来发现自己身处荒野中，上次探索的记忆依然清晰...', 'system')
+      const knownLocations = persistedExplored
+        .map(id => mapLocations.find(loc => loc.id === id)?.name)
+        .filter(Boolean)
+      addLog(`🗺️ 你记得以下区域：${knownLocations.join('、')}`, 'map')
+    } else {
+      addLog('你醒来发现自己身处荒野中，需要想办法生存下去...', 'system')
+    }
+  }
+
+  function clearExploredData() {
+    state.value.exploredLocations = []
+    try {
+      localStorage.removeItem(STORAGE_KEY_EXPLORED)
+    } catch (e) {
+      // ignore
+    }
   }
 
   loadHighScore()
-  addLog('你醒来发现自己身处荒野中，需要想办法生存下去...', 'system')
+
+  const exploredCount = persistedExplored.length
+  if (exploredCount > 0) {
+    addLog('你醒来发现自己身处荒野中，上次探索的记忆依然清晰...', 'system')
+    const knownLocations = persistedExplored
+      .map(id => mapLocations.find(loc => loc.id === id)?.name)
+      .filter(Boolean)
+    addLog(`🗺️ 你记得以下区域：${knownLocations.join('、')}`, 'map')
+  } else {
+    addLog('你醒来发现自己身处荒野中，需要想办法生存下去...', 'system')
+  }
 
   return {
     state,
@@ -182,6 +310,13 @@ export function useGame() {
     gatherStone,
     hunt,
     drink,
+    exploreLocation,
     restart,
+    clearExploredData,
+    unexploredLocations,
+    exploredLocationDetails,
+    explorationProgress,
+    mapLocations,
+    getLocationById,
   }
 }

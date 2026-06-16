@@ -1,19 +1,10 @@
 <script setup lang="ts">
-interface ActionButton {
-  label: string
-  icon: string
-  description: string
-  action: () => void
-  disabled: boolean
-  bgClass: string
-  hoverClass: string
-}
-
 interface Props {
   canGatherWood: boolean
   canGatherStone: boolean
   canHunt: boolean
   canDrink: boolean
+  canExplore: boolean
   disabled: boolean
 }
 
@@ -25,45 +16,6 @@ const emit = defineEmits<{
   hunt: []
   drink: []
 }>()
-
-const buttons: ActionButton[] = [
-  {
-    label: '采集木头',
-    icon: '🪵',
-    description: '获得木材，消耗体力',
-    action: () => emit('gatherWood'),
-    disabled: false,
-    bgClass: 'bg-amber-900/40',
-    hoverClass: 'hover:bg-amber-800/60',
-  },
-  {
-    label: '采集石头',
-    icon: '🪨',
-    description: '获得石头，消耗体力',
-    action: () => emit('gatherStone'),
-    disabled: false,
-    bgClass: 'bg-gray-700/40',
-    hoverClass: 'hover:bg-gray-600/60',
-  },
-  {
-    label: '打猎',
-    icon: '🏹',
-    description: '回复生命，增加饥饿，消耗木材',
-    action: () => emit('hunt'),
-    disabled: false,
-    bgClass: 'bg-red-900/40',
-    hoverClass: 'hover:bg-red-800/60',
-  },
-  {
-    label: '喝水',
-    icon: '💧',
-    description: '减少口渴，消耗木材烧水',
-    action: () => emit('drink'),
-    disabled: false,
-    bgClass: 'bg-blue-900/40',
-    hoverClass: 'hover:bg-blue-800/60',
-  },
-]
 </script>
 
 <template>
@@ -74,23 +26,78 @@ const buttons: ActionButton[] = [
     </h2>
     <div class="grid grid-cols-2 gap-3">
       <button
-        v-for="(btn, index) in buttons"
-        :key="btn.label"
-        @click="btn.action"
-        :disabled="disabled || (index === 0 ? !canGatherWood : index === 1 ? !canGatherStone : index === 2 ? !canHunt : !canDrink)"
+        @click="emit('gatherWood')"
+        :disabled="disabled || !canGatherWood"
         :class="[
-          btn.bgClass,
+          'bg-amber-900/40',
           'relative p-4 rounded-xl border border-game-border transition-all duration-200',
           'flex flex-col items-center justify-center gap-2 text-center',
-          disabled || (index === 0 ? !canGatherWood : index === 1 ? !canGatherStone : index === 2 ? !canHunt : !canDrink)
+          disabled || !canGatherWood
             ? 'opacity-40 cursor-not-allowed'
-            : [btn.hoverClass, 'hover:scale-[1.02] hover:shadow-lg cursor-pointer active:scale-[0.98]'],
+            : ['hover:bg-amber-800/60', 'hover:scale-[1.02] hover:shadow-lg cursor-pointer active:scale-[0.98]'],
         ]"
       >
-        <span class="text-3xl">{{ btn.icon }}</span>
-        <span class="text-white font-semibold text-sm">{{ btn.label }}</span>
-        <span class="text-gray-400 text-xs">{{ btn.description }}</span>
+        <span class="text-3xl">🪵</span>
+        <span class="text-white font-semibold text-sm">采集木头</span>
+        <span class="text-gray-400 text-xs">获得木材，消耗体力</span>
       </button>
+
+      <button
+        @click="emit('gatherStone')"
+        :disabled="disabled || !canGatherStone"
+        :class="[
+          'bg-gray-700/40',
+          'relative p-4 rounded-xl border border-game-border transition-all duration-200',
+          'flex flex-col items-center justify-center gap-2 text-center',
+          disabled || !canGatherStone
+            ? 'opacity-40 cursor-not-allowed'
+            : ['hover:bg-gray-600/60', 'hover:scale-[1.02] hover:shadow-lg cursor-pointer active:scale-[0.98]'],
+        ]"
+      >
+        <span class="text-3xl">🪨</span>
+        <span class="text-white font-semibold text-sm">采集石头</span>
+        <span class="text-gray-400 text-xs">获得石头，消耗体力</span>
+      </button>
+
+      <button
+        @click="emit('hunt')"
+        :disabled="disabled || !canHunt"
+        :class="[
+          'bg-red-900/40',
+          'relative p-4 rounded-xl border border-game-border transition-all duration-200',
+          'flex flex-col items-center justify-center gap-2 text-center',
+          disabled || !canHunt
+            ? 'opacity-40 cursor-not-allowed'
+            : ['hover:bg-red-800/60', 'hover:scale-[1.02] hover:shadow-lg cursor-pointer active:scale-[0.98]'],
+        ]"
+      >
+        <span class="text-3xl">🏹</span>
+        <span class="text-white font-semibold text-sm">打猎</span>
+        <span class="text-gray-400 text-xs">回复生命，增加饥饿</span>
+      </button>
+
+      <button
+        @click="emit('drink')"
+        :disabled="disabled || !canDrink"
+        :class="[
+          'bg-blue-900/40',
+          'relative p-4 rounded-xl border border-game-border transition-all duration-200',
+          'flex flex-col items-center justify-center gap-2 text-center',
+          disabled || !canDrink
+            ? 'opacity-40 cursor-not-allowed'
+            : ['hover:bg-blue-800/60', 'hover:scale-[1.02] hover:shadow-lg cursor-pointer active:scale-[0.98]'],
+        ]"
+      >
+        <span class="text-3xl">💧</span>
+        <span class="text-white font-semibold text-sm">喝水</span>
+        <span class="text-gray-400 text-xs">减少口渴，消耗木材</span>
+      </button>
+    </div>
+
+    <div class="mt-3 p-3 rounded-lg bg-emerald-900/20 border border-emerald-700/30">
+      <p class="text-emerald-400/80 text-xs text-center">
+        🗺️ 在右侧地图上点击未探索区域即可探索新地点
+      </p>
     </div>
   </div>
 </template>
