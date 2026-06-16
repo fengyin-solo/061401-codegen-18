@@ -253,6 +253,8 @@ export function useGame() {
   }
 
   function restart() {
+    const currentExplored = [...state.value.exploredLocations]
+
     state.value = {
       health: 80,
       hunger: 30,
@@ -262,15 +264,15 @@ export function useGame() {
       turn: 0,
       isGameOver: false,
       logs: [],
-      exploredLocations: [...persistedExplored],
+      exploredLocations: currentExplored,
       currentLocationId: null,
     }
     logIdCounter = 0
 
-    const exploredCount = persistedExplored.length
+    const exploredCount = currentExplored.length
     if (exploredCount > 0) {
       addLog('你醒来发现自己身处荒野中，上次探索的记忆依然清晰...', 'system')
-      const knownLocations = persistedExplored
+      const knownLocations = currentExplored
         .map(id => mapLocations.find(loc => loc.id === id)?.name)
         .filter(Boolean)
       addLog(`🗺️ 你记得以下区域：${knownLocations.join('、')}`, 'map')
